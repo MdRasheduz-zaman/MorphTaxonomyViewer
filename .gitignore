@@ -1,0 +1,36 @@
+# ---- OS / editor cruft ----
+.DS_Store
+Thumbs.db
+desktop.ini
+*~
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# ---- Python (tools/) ----
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# ---- Node (only if someone adds tooling) ----
+node_modules/
+npm-debug.log*
+
+# ---- Internal / private working files (not for the public repo) ----
+# Anything under these folders, or matching these patterns, stays local.
+internal/
+private/
+notes/
+scratch/
+scratchpad/
+drafts/
+*.local
+*.local.*
+*.internal
+*.internal.*
+TODO.local.md
+NOTES.local.md
+taxonomy.md
+example_traits*

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Morphology-First Taxonomy Viewer</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🌿🐾</span>
+      <div>
+        <h1>Taxonomy Viewer</h1>
+        <p class="tagline">See who is related to whom — by physical form alone, no DNA needed.</p>
+      </div>
+    </div>
+    <div class="controls">
+      <input id="search" type="search" placeholder="Search a species or group…" autocomplete="off" aria-label="Search a species or group" />
+      <button id="expandAll" class="btn" title="Expand every branch">Expand all</button>
+      <button id="collapseAll" class="btn" title="Collapse to kingdoms">Collapse</button>
+    </div>
+  </header>
+
+  <main class="layout" id="layout">
+    <!-- LEFT: tree OR the vertical Y comparison diagram -->
+    <section class="panel tree-panel" id="paneTree">
+      <div class="panel-head">
+        <div class="head-row">
+          <h2 id="viewTitle">Tree of life</h2>
+          <div class="head-controls">
+            <button id="treeFocusToggle" class="seg subtle hidden" title="Show only the two compared lineages">Focused</button>
+            <div class="view-toggle">
+              <button id="viewTree" class="seg active">Tree</button>
+              <button id="viewCompare" class="seg">Y-compare</button>
+            </div>
+          </div>
+        </div>
+        <p class="hint" id="viewHint">Click a row to inspect it. Click <b>Compare</b> on two organisms to see the Y-shaped path between them.</p>
+      </div>
+      <div id="tree" class="tree"></div>
+      <div id="ydiagram" class="ydiagram-wrap hidden"></div>
+    </section>
+
+    <!-- draggable divider between the tree and the detail panels -->
+    <div class="gutter gutter-col" id="gutterCol" title="Drag to resize · double-click to reset">
+      <span class="grip"></span>
+      <button class="gutter-collapse" id="collapseSide" title="Collapse / expand this panel">⟩</button>
+    </div>
+
+    <!-- RIGHT: detail + comparison metrics -->
+    <aside class="panel side-panel" id="paneSide">
+      <div id="compareBar" class="compare-bar">
+        <div class="slot" id="slotA">
+          <span class="slot-label">A</span>
+          <button class="slot-pick" data-slot="A"><span class="slot-name">pick an organism or group…</span><span class="caret">▾</span></button>
+        </div>
+        <div class="slot" id="slotB">
+          <span class="slot-label">B</span>
+          <button class="slot-pick" data-slot="B"><span class="slot-name">pick an organism or group…</span><span class="caret">▾</span></button>
+        </div>
+        <button id="clearCompare" class="btn ghost" title="Clear both slots">Clear</button>
+      </div>
+      <div id="pickerPop" class="picker-pop hidden">
+        <input id="pickerSearch" type="search" placeholder="Type a species or group name…" autocomplete="off" aria-label="Filter organisms and groups" />
+        <div id="pickerList" class="picker-list"></div>
+      </div>
+
+      <div class="side-stack" id="sideStack">
+        <div class="side-region" id="regionCompare">
+          <div id="comparison" class="comparison hidden"></div>
+        </div>
+
+        <!-- draggable divider between comparison and details (only while comparing) -->
+        <div class="gutter gutter-row hidden" id="gutterRow" title="Drag to resize · double-click to reset">
+          <span class="grip"></span>
+          <button class="gutter-collapse" id="collapseCompare" title="Collapse / expand comparison">▴</button>
+        </div>
+
+        <div class="side-region grow" id="regionDetail">
+          <div id="detail" class="detail">
+            <div class="detail-empty">
+              <h3>Nothing selected yet</h3>
+              <p>Pick any node in the tree to see its morphological characters and a picture.</p>
+              <p>Try the quick comparisons:</p>
+              <div class="examples" id="examples"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="footer">
+    <span id="stats"></span>
+    <span>Data lives in <code>data/animals.csv</code> &amp; <code>data/plants.csv</code> · rebuild with <code>tools/build.py</code></span>
+  </footer>
+
+  <div id="lightbox" class="lightbox hidden">
+    <button class="lb-close" title="Close (Esc)">✕</button>
+    <div class="lb-stage"></div>
+    <div class="lb-cap"></div>
+  </div>
+
+  <script src="data/dataset.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/panels.js"></script>
+</body>
+</html>
