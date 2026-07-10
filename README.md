@@ -117,6 +117,14 @@ has no `body_covering` and an animal has no `leaf_venation`, so mixing them just
 Full schema, the naming convention for per-trait images, and where to pull reliable classifications
 (GBIF, Catalogue of Life, POWO, ITIS) are in **[docs/DATABASE.md](docs/DATABASE.md)**.
 
+## License & credits
+
+The **code and dataset** in this repository are under its `LICENSE`. The **species photos** in
+`images/` are **not** — each is a third-party Wikimedia Commons / Wikipedia image under **its own
+licence** (CC BY, CC BY-SA, GFDL, or public domain), and reusing one means following that licence and
+crediting its author. Every photo's author, licence and source are listed in
+**[images/CREDITS.md](images/CREDITS.md)** (regenerate with `python3 tools/fetch_images.py --credits`).
+
 ## The idea in one line
 
 Two truths, side by side: **how deep two organisms share a branch** (taxonomy) versus **how alike
