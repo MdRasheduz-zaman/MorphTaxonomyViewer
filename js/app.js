@@ -461,12 +461,14 @@
     renderTree();
     renderCompareBar();
     renderComparison();
+    if (!selectedId) renderDetailEmpty();
     if (slots.A && slots.B) setView("compare");
   }
   function clearCompare() {
     slots.A = null; slots.B = null;
     renderCompareBar();
     renderComparison();
+    if (!selectedId) renderDetailEmpty();
     setView("tree");
     renderTree();
   }
@@ -500,6 +502,16 @@
   const pickSearch = document.getElementById("pickerSearch");
   const pickList = document.getElementById("pickerList");
   let pickerSlot = null;
+  let pickerMode = "species"; // "species" | "groups" | "all" — keeps the list uncluttered
+  pop.querySelectorAll(".pk-mode").forEach((b) =>
+    b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      pickerMode = b.dataset.mode;
+      pop.querySelectorAll(".pk-mode").forEach((x) => x.classList.toggle("active", x === b));
+      fillPicker(pickSearch.value);
+      pickSearch.focus();
+    })
+  );
 
   function openPicker(slot, anchor) {
     pickerSlot = slot;
@@ -535,9 +547,12 @@
   }
   function fillPicker(q) {
     q = q.trim().toLowerCase();
-    const items = ALL_ORGANISMS.filter(
-      (n) => !q || (n.name + " " + (n.common || "")).toLowerCase().includes(q)
-    );
+    const isLeaf = (n) => !(n.children || []).length;
+    const items = ALL_ORGANISMS.filter((n) => {
+      if (pickerMode === "species" && !isLeaf(n)) return false;
+      if (pickerMode === "groups" && isLeaf(n)) return false;
+      return !q || (n.name + " " + (n.common || "")).toLowerCase().includes(q);
+    });
     const animals = items.filter((n) => kingdomOf(n) !== "Plantae");
     const plants = items.filter((n) => kingdomOf(n) === "Plantae");
     const col = (label, list) =>
@@ -555,6 +570,7 @@
         closePicker();
         renderCompareBar();
         renderComparison();
+        if (!selectedId) renderDetailEmpty();
         if (slots.A && slots.B) setView("compare");
         else renderTree();
       })
@@ -785,10 +801,40 @@
     if (!a || !b) return;
     slots.A = a; slots.B = b;
     revealPath(a); revealPath(b);
-    renderTree(); renderCompareBar(); renderComparison(); setView("compare");
+    renderTree(); renderCompareBar(); renderComparison();
+    if (!selectedId) renderDetailEmpty();
+    setView("compare");
+  }
+  // The detail panel's placeholder is context-aware: during a comparison it points
+  // up at the metrics (instead of the misleading "nothing selected" onboarding).
+  function renderDetailEmpty() {
+    const A = slots.A, B = slots.B;
+    if (A && B && A._id !== B._id) {
+      const kind = (A.children || []).length || (B.children || []).length ? "taxa" : "organisms";
+      detailEl.innerHTML =
+        `<div class="detail-empty">` +
+        `<h3>Comparing two ${kind}</h3>` +
+        `<p>The similarity bars and the shared &amp; differing characters are shown <b>above</b>.</p>` +
+        `<p>Inspect one in full here — or click any row in the tree.</p>` +
+        `<div class="examples">` +
+        `<button class="example-btn" data-inspect="A"><b>Inspect A:</b> ${A.name}</button>` +
+        `<button class="example-btn" data-inspect="B"><b>Inspect B:</b> ${B.name}</button>` +
+        `</div></div>`;
+      detailEl.querySelectorAll("[data-inspect]").forEach((btn) =>
+        btn.addEventListener("click", () => selectNode(slots[btn.dataset.inspect])));
+    } else {
+      detailEl.innerHTML =
+        `<div class="detail-empty">` +
+        `<h3>Nothing selected yet</h3>` +
+        `<p>Pick any node in the tree to see its morphological characters and a picture.</p>` +
+        `<p>Try the quick comparisons:</p>` +
+        `<div class="examples" id="examples"></div></div>`;
+      renderExamples();
+    }
   }
   function renderExamples() {
     const box = document.getElementById("examples");
+    if (!box) return;
     box.innerHTML = "";
     const addBtns = (list) =>
       list.forEach(([la, na, lb, nb]) => {
@@ -867,5 +913,5 @@
   });
   renderTree();
   renderCompareBar();
-  renderExamples();
+  renderDetailEmpty();
 })();
