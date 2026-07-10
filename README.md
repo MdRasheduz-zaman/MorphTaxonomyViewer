@@ -32,12 +32,12 @@ separate them — that's what a "species complex" means.
 
 | Comparison | Morphological match | Taxonomic reference | What it means |
 |---|---|---|---|
-| Human vs Mouse | 82% | 51% (Superorder Euarchontoglires) | Both euarchontoglire mammals; look alike. |
-| Lion vs Tiger | 96% | 81% (Genus *Panthera*) | Nearly identical, very close lineage. |
-| Cat vs Dog | 97% | 54% (Order Carnivora) | Shared carnivore body plan; split into cat/dog suborders. |
-| *Culex pipiens* vs *C. quinquefasciatus* | 100% | 97% (Species complex) | **Cryptic species** — our characters can't separate them → **need finer traits**. |
+| Human vs Mouse | 62% | 51% (Superorder Euarchontoglires) | Both euarchontoglire mammals, but visibly differ (posture, size, snout, diet…). |
+| Lion vs Tiger | 90% | 81% (Genus *Panthera*) | Very close; differ mainly in the tiger's stripes. |
+| Cat vs Dog | 94% | 54% (Order Carnivora) | Shared carnivore body plan; split into cat/dog suborders. |
+| *Culex pipiens* vs *C. quinquefasciatus* | 100% | 97% (Species complex) | **Cryptic species** — visible characters can't separate them → **need finer traits**. |
 | Wheat vs Rye | 100% | 76% (Tribe Triticeae) | Same recorded grass form; very close. |
-| Wheat vs Pea | 37% | 22% (Subphylum Spermatophytina) | Morphology agrees with the monocot/eudicot split. |
+| Wheat vs Pea | 26% | 22% (Subphylum Spermatophytina) | Morphology agrees with the monocot/eudicot split. |
 | Human vs Bamboo | n/a | 3% (Domain Eukarya) | No shared characters — animal vs plant trait sets don't overlap. |
 
 ## Run it
@@ -90,32 +90,44 @@ offline — no network is touched at view time.
 
 ```
 taxonomy_viewer/
-├── index.html            # the app shell
-├── css/styles.css        # styling
-├── js/app.js             # tree, Y-diagram, similarity engine (vanilla JS, no deps)
-├── js/panels.js          # resizable / collapsible panel dividers
-├── .gitignore            # keeps OS cruft & internal working files out of the repo
+├── index.html              # the app shell
+├── css/styles.css          # styling
+├── js/app.js               # tree, Y-diagram, similarity engine (vanilla JS, no deps)
+├── js/panels.js            # resizable / collapsible panel dividers
+├── .gitignore              # keeps OS cruft & internal working files out of the repo
 ├── data/
-│   ├── animals.csv       # ← EDIT THIS. One row per animal. Kingdom Animalia.
-│   ├── plants.csv        # ← EDIT THIS. One row per plant.  Kingdom Plantae.
-│   └── dataset.js        # auto-generated (window.DATASET) so file:// works offline
-├── tools/build.py        # reads the two CSVs → dataset.js (+ validates the tree)
-├── tools/fetch_images.py # pulls one openly-licensed photo per species into images/
-├── images/               # species photos (<slug>.jpg)
-│   └── <species_slug>/   # optional: real close-ups of that organism's characters
-├── docs/DATABASE.md      # how to organize & grow the datasets, and where to get data
-└── taxonomy.md           # the taxonomy primer this project is built on
+│   ├── animals.csv         # ← EDIT THIS. One row per animal. Visible traits only.
+│   ├── plants.csv          # ← EDIT THIS. One row per plant.  Visible traits only.
+│   ├── lineage_ref.csv     # the shared taxonomy (name,rank,parent) — extended ranks
+│   └── dataset.js          # auto-generated (window.DATASET) so file:// works offline
+├── tools/build.py          # reads the CSVs → dataset.js (+ validates the tree)
+├── tools/fetch_images.py   # fetch species photos + write images/CREDITS.md
+├── images/
+│   ├── <slug>.jpg          # each organism's main photo
+│   ├── <slug>/             # that organism's per-character close-ups (photo/gif/video)
+│   ├── README.md           # ← image naming convention (read before adding media)
+│   └── CREDITS.md          # author + licence + source for every third-party photo
+└── docs/DATABASE.md        # how to organize & grow the datasets, and where to get data
 ```
 
-## Adding organisms (spreadsheet-friendly)
+## Adding organisms & characters (spreadsheet-friendly)
 
-Open **`data/animals.csv`** or **`data/plants.csv`** in Excel / LibreOffice / Google Sheets, add a
-row, fill the lineage columns (phylum … genus, species) and whatever trait columns you can, save,
-then run `python3 tools/build.py`. Animals and plants are **separate files on purpose** — a plant
-has no `body_covering` and an animal has no `leaf_venation`, so mixing them just makes empty cells.
+The two CSVs are a **field-collection template** — grow them freely:
 
-Full schema, the naming convention for per-trait images, and where to pull reliable classifications
-(GBIF, Catalogue of Life, POWO, ITIS) are in **[docs/DATABASE.md](docs/DATABASE.md)**.
+- **Add a row** for each organism you record. You only need its `species` (full binomial); the whole
+  lineage is filled in from `data/lineage_ref.csv`. If its genus isn't there yet, add one line to
+  `lineage_ref.csv` (`name,rank,parent`) — any rank from the extended hierarchy works.
+- **Add a column** for any **visible** character you can score by eye / camera / ruler. Only visible
+  traits by design — no dissection, microscope or lab (see [docs/DATABASE.md](docs/DATABASE.md)). It's
+  a scope, not a limit: the same maths runs on whatever you add, and a richer set just tightens the
+  morphology↔taxonomy gap (less under/over-fitting — good for teaching).
+- **Leave cells blank** for anything you didn't observe — blanks are skipped, partial data is fine.
+- Then run `python3 tools/build.py`. Animals and plants are **separate files on purpose** (a plant has
+  no `dentition`, an animal no `leaf_venation`).
+
+Add photos/GIFs/short videos per organism and per character by file name — the exact, **must-match**
+convention is in **[images/README.md](images/README.md)**. Where to pull reliable classifications
+(GBIF, Catalogue of Life, POWO, ITIS) is in **[docs/DATABASE.md](docs/DATABASE.md)**.
 
 ## License & credits
 

@@ -359,11 +359,13 @@ body.resizing-x, body.resizing-y { user-select: none; }
 .tcard { border-radius: 8px; overflow: hidden; border: 1px solid var(--line); background: var(--panel-2); }
 .tcard.a { border-top: 3px solid var(--a); }
 .tcard.b { border-top: 3px solid var(--b); }
-.tcard-img { width: 100%; height: 118px; }
+/* a proportionate (not wide-strip) slot; grows with the card but keeps a photo shape */
+.tcard-img { width: 100%; aspect-ratio: 4 / 3; height: auto; }
 /* a media box sizes the slot; the <img>/<video> inside fills it.
    contain (not cover) keeps the WHOLE organism visible — widening a panel just adds
-   letterbox instead of cropping/zooming the picture */
-.media-box { display: block; overflow: hidden; background: #10151b; line-height: 0; }
+   a little letterbox instead of cropping. The letterbox uses the card colour so it
+   blends in rather than reading as a harsh black band. */
+.media-box { display: block; overflow: hidden; background: var(--panel-2); line-height: 0; }
 .media-el { width: 100%; height: 100%; object-fit: contain; display: block; }
 .media-box.zoomable { cursor: zoom-in; }
 .tcard-name { padding: 5px 6px 0; font-size: 11px; font-style: italic; color: var(--muted); text-align: center; }

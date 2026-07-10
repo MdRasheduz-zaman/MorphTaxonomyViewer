@@ -52,13 +52,32 @@ auto-detects the type from the values:
 Use **consistent vocabulary** in a categorical column (`fibrous` / `taproot`, not `fibrous roots`
 in one row and `fibrous` in another) — the match is exact string comparison.
 
-The seed columns (extend or rename freely):
+**Visible characters only (by design).** Every column is a trait a student could record in the field
+by **eye, camera, or ruler** — no dissection, microscope, or lab. That's why the ships-with columns
+cover the outside of an organism (covering, colour, markings, body regions, eyes, mouth, dentition,
+limbs, feet, claws, tail, leaf/flower/fruit form, …) and **not** internal or biochemical traits
+(heart chambers, blood pigment, vascular cross-section, C3/C4, …). This is a scope, not a limitation:
+the maths, the tree, and the two similarity numbers work identically for *any* character a contributor
+adds later — a richer set simply narrows the morphology↔taxonomy gap (less "underfitting").
+
+**Grow it like a template.** The CSVs are meant to be a field-collection template: add a **row** per
+organism you record, add a **column** for any visible character you can score, and leave cells you
+didn't observe **blank** (blanks are skipped in the maths — partial data is fine). The seed rows are
+populated so the app has something to show; you do not have to fill every cell.
+
+Current visible columns (extend or rename freely):
 
 ```
-animals: body_covering, limb_count, wings, skeleton, backbone, thermoregulation,
-         reproduction, mammary_glands, dentition, body_segments, body_length_cm, habitat
-plants:  growth_form, leaf_venation, root_system, cotyledons, flower_parts, wood,
-         photosynthesis, fruit_type, inflorescence, leaf_shape, plant_height_cm
+animals: body_covering, coloration, markings, countershading, body_length_cm, posture, symmetry,
+         body_regions, segmentation, skeleton_position, backbone, snout, eyes, eye_position, pinnae,
+         vibrissae, antennae, mouth, dentition, cranial_appendages, limb_count, appendages,
+         foot_posture, claw_type, wings, locomotion, tail, tail_form, reproduction, mammary_glands,
+         metamorphosis, diet, habitat
+plants:  growth_form, lifespan, plant_height_cm, leaf_arrangement, leaf_complexity, leaf_shape,
+         leaf_venation, leaf_margin, leaf_apex, leaf_attachment, pubescence, stem_type, stem_surface,
+         wood, tendrils, root_system, flower_symmetry, perianth, petal_fusion, flower_parts,
+         flower_color, flower_size, inflorescence, pollination, fruit_type, fruit_dehiscence,
+         fruit_color, seed_count, seed_habit, cotyledons, economic_use
 ```
 
 ## The two similarity numbers
@@ -120,6 +139,11 @@ Nothing is ever auto-drawn or substituted: if no media exists the card reads *"n
 comparison stays honest and it's obvious where a contribution is welcome — ideal for an open dataset
 people grow over time. Every real photo/clip is click-to-zoom in the app. **Wikimedia Commons**
 `Special:FilePath` links are a good openly-licensed source.
+
+Each organism already has a scaffolded folder (`images/<slug>/`, kept by a `.gitkeep`) waiting for its
+character close-ups. The **slug must match the CSV `species` letter-for-letter** — the full rules,
+with examples, are in **[images/README.md](../images/README.md)**. Third-party photos must be credited
+in **[images/CREDITS.md](../images/CREDITS.md)**.
 
 ## Where to get reliable classifications
 
