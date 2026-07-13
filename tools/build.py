@@ -141,16 +141,19 @@ def load_reference():
     return ref
 
 
-def resolve_lineage(sci, row, ref, errors):
+def resolve_lineage(sci, row, ref, errors, kingdom):
     """Return {rank: name} for phylum..genus, from the reference + any CSV overrides."""
     genus = row.get("genus", "").strip() or sci.split()[0]
     resolved = {}
-    cur, guard = genus, 0
+    cur, guard, last_name = genus, 0, None
     while cur in ref and guard < 50:
         rank, parent = ref[cur]
         resolved[rank] = cur
+        last_name = cur
         cur = parent
         guard += 1
+    stop_at = cur  # first ancestor NOT in the reference: the kingdom if the chain is
+                   # complete, otherwise a dangling parent the user forgot to define
     # explicit rank columns in the organism row win over the reference
     for rank in RANK_ORDER:
         if rank in row and row.get(rank, "").strip():
@@ -159,6 +162,22 @@ def resolve_lineage(sci, row, ref, errors):
         errors.append(
             f"{sci}: genus {genus!r} is not in lineage_ref.csv and no lineage "
             f"columns were given — add a row 'name={genus},rank=genus,parent=<family>'."
+        )
+    elif "phylum" not in resolved:
+        # The chain never climbed to a phylum, so the organism would graft directly
+        # under the kingdom and could never share a real ancestor (LCA) with the rest
+        # of the tree — every organism must reach at least its phylum. This is almost
+        # always a dangling `parent` partway up: name it and tell the user to continue
+        # the chain until it connects to a taxon already in the tree.
+        broke = stop_at and stop_at not in (kingdom, "Animalia", "Plantae")
+        hint = (f"its ancestor {stop_at!r} has no row in lineage_ref.csv"
+                if broke else "the chain never reaches a phylum")
+        errors.append(
+            f"{sci}: lineage stops at {last_name!r} and never reaches a phylum "
+            f"({hint}). Add the missing 'name,rank,parent' rows up the chain until it "
+            f"connects to a taxon already in the tree — ultimately a phylum whose "
+            f"parent is {kingdom!r} — so the organism shares an ancestor (LCA) with "
+            f"the others. Existing higher taxa can be reused; only add what's missing."
         )
     return resolved
 
@@ -196,7 +215,7 @@ def build(check_only=False):
             seen_species.add(sci)
 
             # Fill in the full lineage from the reference (+ any overrides).
-            resolved = resolve_lineage(sci, r, ref, errors)
+            resolved = resolve_lineage(sci, r, ref, errors, kingdom)
             resolved["species"] = sci
             if r.get("species_complex", "").strip():
                 resolved["species_complex"] = r["species_complex"].strip()

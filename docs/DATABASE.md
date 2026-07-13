@@ -42,6 +42,52 @@ plants.csv  : common_name, phylum, class, order, family, subfamily, tribe, genus
   hierarchy lives once in `data/lineage_ref.csv` (`name,rank,parent`); an organism row only needs its
   `species`, and can override any rank with a matching column if needed.
 
+### The reference is a chain — connect new branches up to an existing ancestor
+
+`data/lineage_ref.csv` is a set of `name,rank,parent` rows that form **parent chains**. The build
+takes each organism's genus and walks *up* those `parent` links (`genus → family → order → … →
+phylum`) until it reaches the kingdom. So you only ever record the **missing** part of a lineage —
+existing higher taxa are reused, never retyped. Three cases:
+
+- **Genus already in the file** (e.g. a second *Panthera*) → add nothing; the whole lineage is
+  inherited from the genus up.
+- **New genus whose family/order/… already exist** → add the single missing row,
+  e.g. `Lynx,genus,Felinae` (Felinae and everything above it are already there).
+- **A whole new branch** (a class/order not represented yet) → add a **connected chain** from the new
+  genus up to the nearest taxon that already exists.
+
+**Worked example — adding a bird (`Passer domesticus`, house sparrow).** Birds (class Aves) aren't in
+the seed data, but *subphylum Vertebrata* is (it's the mammals' ancestor). So you climb from the new
+genus only as far as Vertebrata and stop — the rest of the chain (`Vertebrata → Chordata → Animalia`)
+is reused:
+
+```
+# add these rows to data/lineage_ref.csv
+Passer,genus,Passeridae
+Passeridae,family,Passeriformes
+Passeriformes,order,Aves
+Aves,class,Vertebrata      # Vertebrata already exists → the branch grafts in here
+```
+
+Now the sparrow's lowest common ancestor with a human resolves to **subphylum Vertebrata**, which is
+correct — birds and mammals are both vertebrates.
+
+**Every organism must reach at least its phylum.** If a chain stops short — a `parent` that points at
+a taxon you never added (a typo, or you only added the genus) — the organism would graft *directly
+under the kingdom* and could never share a proper ancestor (LCA) with anything else. `tools/build.py`
+now treats that as a **hard error** and names the dangling link, e.g.:
+
+```
+VALIDATION FAILED:
+  - Passer domesticus: lineage stops at 'Passer' and never reaches a phylum (its ancestor
+    'Passeridae' has no row in lineage_ref.csv). Add the missing 'name,rank,parent' rows up the
+    chain until it connects to a taxon already in the tree — ultimately a phylum whose parent is
+    'Animalia' …
+```
+
+Fix it by adding the missing rows up to an existing ancestor and re-running the build. (Spelling and
+capitalisation of `name`/`parent` must match exactly — the links are matched by string.)
+
 **2. Trait columns** (everything else). Each is one **morphological character**. The build script
 auto-detects the type from the values:
 

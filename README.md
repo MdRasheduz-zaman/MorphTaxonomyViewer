@@ -121,8 +121,17 @@ taxonomy_viewer/
 The two CSVs are a **field-collection template** — grow them freely:
 
 - **Add a row** for each organism you record. You only need its `species` (full binomial); the whole
-  lineage is filled in from `data/lineage_ref.csv`. If its genus isn't there yet, add one line to
-  `lineage_ref.csv` (`name,rank,parent`) — any rank from the extended hierarchy works.
+  lineage is filled in from `data/lineage_ref.csv` by walking the genus up its `parent` chain. What you
+  add to `lineage_ref.csv` depends on how much of the branch already exists:
+  - **Genus already there** (e.g. another *Panthera*) → nothing to add; the lineage is inherited.
+  - **New genus, but its family/order/… already there** → add the **one** missing line:
+    `Newgenus,genus,<existing parent>`.
+  - **A whole new branch** (a class/order not represented yet, e.g. a bird) → add a **connected chain**
+    of `name,rank,parent` rows from the new genus **up to the nearest taxon already in the file**
+    (reuse the existing higher ranks — only add what's missing). Every organism must climb to at least
+    its **phylum** so it shares a real ancestor (LCA) with the rest of the tree; `tools/build.py`
+    **fails with a pointer to the dangling `parent`** if a lineage stops short. A worked example is in
+    **[docs/DATABASE.md](docs/DATABASE.md)**.
 - **Add a column** for any **visible** character you can score by eye / camera / ruler. Only visible
   traits by design — no dissection, microscope or lab (see [docs/DATABASE.md](docs/DATABASE.md)). It's
   a scope, not a limit: the same maths runs on whatever you add, and a richer set just tightens the
