@@ -73,6 +73,16 @@
   }
   const valOf = (leaf, key) => (leaf.trait_values || {})[key];
 
+  // Values that record the ABSENCE of a feature rather than a describable state of
+  // one. Two organisms that BOTH lack a feature (human & cat both "antennae: none")
+  // aren't visibly "alike" in that feature — a shared nothing is not a shared
+  // character — so a mutual absence is dropped from the "Where they're alike" list.
+  // A present-vs-absent pair is still a real, showable difference (a mosquito HAS
+  // antennae, a human doesn't) and stays in the "Where they differ" list untouched.
+  const ABSENCE_VALUES = new Set(["none", "absent", "no", "n/a", "na"]);
+  const isAbsence = (v) =>
+    v != null && ABSENCE_VALUES.has(String(v).trim().toLowerCase());
+
   // Characters that ALL members of a group share the same value for.
   function sharedTraits(node) {
     const k = kingdomOf(node);
@@ -668,10 +678,17 @@
         </div>
       </div>`;
 
-    const alikeCards = m.shared.length
-      ? `<div class="diffs alikes"><h4>Where they’re alike — see it (${m.shared.length})</h4>${
-          m.shared.map(charCard).join("")}</div>`
-      : (m.sim != null ? `<p class="compare-line">No character is identical on both — see the differences below.</p>` : "");
+    // A shared feature only counts as "alike" if both organisms actually HAVE it.
+    // Drop characters where both sides merely record the same absence (both "none"
+    // / "absent" / "no"): human & cat both lacking antennae is not a shared trait
+    // to show. (These still contribute to the morphological % above — two forms
+    // that both lack a structure are genuinely more alike — this only trims the
+    // visual card list.)
+    const alike = m.shared.filter((d) => !(isAbsence(d.va) && isAbsence(d.vb)));
+    const alikeCards = alike.length
+      ? `<div class="diffs alikes"><h4>Where they’re alike — see it (${alike.length})</h4>${
+          alike.map(charCard).join("")}</div>`
+      : (m.sim != null ? `<p class="compare-line">No shared visible feature to show — any overlap is only in features both lack. See the differences below.</p>` : "");
 
     const diffCards = m.diff.length
       ? `<div class="diffs"><h4>Where they differ — see it (${m.diff.length})</h4>${

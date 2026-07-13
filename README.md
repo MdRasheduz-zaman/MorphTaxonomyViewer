@@ -5,6 +5,8 @@ physical/morphological classification**, the way naturalists worked for 250 year
 sequencing existed. No sequencing machine required in the field: shared body plans, organs and
 structures are still gold.
 
+![The viewer comparing a lion and a tiger: a Y-shaped lineage path on the left, and on the right the two similarity bars, an interpretation, and the shared and differing characters shown as side-by-side photo cards.](view.png)
+
 Pick two organisms and the tool draws a **vertical Y-shaped path** from their shared ancestor down
 to each one, and gives you **two closeness numbers**:
 
@@ -70,7 +72,11 @@ offline — no network is touched at view time.
 - **Compare**: hover a row → **Compare** (or use the quick-example buttons) to fill slots A and B.
   The left panel switches to the **Y-diagram** (shared spine, then the fork to each organism), and
   the right panel shows the two similarity bars, an interpretation, and both the **shared** and the
-  **differing** characters as cards. Every card shows the **two real organisms side by side** (A on
+  **differing** characters as cards. **A shared *absence* is not shown as a shared trait** — if both
+  organisms simply lack a feature (a human and a cat both scored `antennae: none`), that character is
+  dropped from "Where they're alike", because a mutual *nothing* is not a visible shared character. The
+  same feature still appears under "Where they differ" whenever one side has it and the other doesn't
+  (a mosquito's `antennae` vs a human's). Every card shows the **two real organisms side by side** (A on
   the left, B on the right), each labelled with its value for that character. Media connect purely by
   file name — drop a real close-up (photo, **GIF/animation**, or **short video**) at
   `images/<species>/<trait>.jpg` and it replaces the whole-body photo on that one card. Click any
@@ -128,6 +134,31 @@ The two CSVs are a **field-collection template** — grow them freely:
 Add photos/GIFs/short videos per organism and per character by file name — the exact, **must-match**
 convention is in **[images/README.md](images/README.md)**. Where to pull reliable classifications
 (GBIF, Catalogue of Life, POWO, ITIS) is in **[docs/DATABASE.md](docs/DATABASE.md)**.
+
+### How fine should a character be? (flat columns vs. nested traits)
+
+Two organisms can "share" a character and still look quite different *within* it. A human and a cat
+both have **body hair**, but the hair differs in length, density, colour pattern, and texture. So a
+single `body_covering: hair` column marks them as identical on that trait when, visibly, they aren't.
+There are two ways to capture that extra detail, and this project deliberately chooses the first:
+
+- **Flat columns (what we do).** Split a character into more **visible sub-characters, each its own
+  column** — e.g. `hair_length`, `hair_density`, `hair_pattern` beside `body_covering`. It stays a
+  plain spreadsheet anyone can edit, every field feeds the Gower maths directly with no special
+  handling, and blank cells are simply skipped. The cost is **width**: the more nuance you want, the
+  more columns the CSV grows, and a fully-blank column just won't render until at least one row fills
+  it. In practice this is fine — you add columns only for the distinctions you actually want (and/or can observe) the
+  similarity score to *see*.
+
+- **Nested per-trait properties (a JSON structure — considered, not used).** You *could* instead give
+  each trait an object of sub-properties, e.g.
+  `"body_hair": { "present": true, "length": "short", "colour": "tawny" }`, keeping related detail
+  bundled under one key. It reads tidily and models "a trait with attributes" more faithfully. But it
+  makes the data **less intuitive to edit** (no longer a flat sheet you can open in any spreadsheet),
+  **harder to maintain** (every consumer must know each trait's inner shape, and the similarity engine
+  needs per-trait logic to weigh nested fields), and it blurs the project's field-collection goal —
+  score one visible thing per cell. For a teaching tool meant to be grown by hand in a spreadsheet, the
+  flat "one more column" path wins; the nested design is noted here as the road not taken.
 
 ## License & credits
 
