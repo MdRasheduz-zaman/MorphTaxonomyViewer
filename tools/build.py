@@ -70,7 +70,11 @@ RANK_LABELS = {
     "variety": "Variety", "subvariety": "Subvariety", "form": "Form", "subform": "Subform",
 }
 # Columns that are metadata, not morphological characters.
-META_COLS = set(RANK_ORDER) | {"common_name", "image"}
+# `unknown` (truthy) marks a row whose taxonomy the finder doesn't know yet: it is
+# NOT grafted into the tree (and is exempt from the reach-a-phylum check) — instead
+# it's collected into DATASET.unplaced for the Identify tab to place by morphology.
+META_COLS = set(RANK_ORDER) | {"common_name", "image", "unknown"}
+UNKNOWN_TRUE = {"yes", "y", "true", "1", "x", "unknown", "unplaced"}
 
 KINGDOM_OF_FILE = {"animals.csv": "Animalia", "plants.csv": "Plantae"}
 KINGDOM_TRAITS = {
@@ -90,7 +94,9 @@ def slug(name):
 def read_csv(fname):
     path = os.path.join(DATA, fname)
     with open(path, newline="", encoding="utf-8") as fh:
-        rows = list(csv.DictReader(fh))
+        # restval="" so a row that predates a newly-added trailing column (e.g. the
+        # optional `unknown` flag) reads as "" for it, not None — keeps .strip() safe.
+        rows = list(csv.DictReader(fh, restval=""))
     return rows
 
 
@@ -193,6 +199,7 @@ def build(check_only=False):
     ref = load_reference()
     trait_schema = {}
     organisms = []
+    unplaced = []          # rows flagged unknown: traits recorded, taxonomy not yet known
     seen_species = set()
 
     for fname, kingdom in KINGDOM_OF_FILE.items():
@@ -213,6 +220,17 @@ def build(check_only=False):
             if sci in seen_species:
                 errors.append(f"{fname}: duplicate species {sci!r}")
             seen_species.add(sci)
+
+            # An "unknown" row is held aside for morphological identification, not
+            # placed in the tree — so it skips lineage resolution and the phylum check.
+            if (r.get("unknown") or "").strip().lower() in UNKNOWN_TRUE:
+                traits = {c: r[c].strip() for c in trait_cols if (r.get(c) or "").strip()}
+                entry = {"name": sci, "common": r.get("common_name", "").strip(),
+                         "kingdom": kingdom, "trait_values": traits, "slug": slug(sci)}
+                if (r.get("image") or "").strip():
+                    entry["image"] = r["image"].strip()
+                unplaced.append(entry)
+                continue
 
             # Fill in the full lineage from the reference (+ any overrides).
             resolved = resolve_lineage(sci, r, ref, errors, kingdom)
@@ -265,7 +283,7 @@ def build(check_only=False):
             print("  -", e)
         sys.exit(1)
 
-    n_species = len(seen_species)
+    n_species = len(organisms)   # placed organisms only (unknown/unplaced excluded)
     n_nodes = 0
     def count(n):
         nonlocal n_nodes
@@ -274,7 +292,8 @@ def build(check_only=False):
             count(c)
     count(root)
     print(f"OK: {n_species} organisms, {n_nodes} tree nodes, "
-          f"{len(trait_schema['Animalia'])} animal + {len(trait_schema['Plantae'])} plant characters.")
+          f"{len(trait_schema['Animalia'])} animal + {len(trait_schema['Plantae'])} plant characters"
+          + (f", {len(unplaced)} unknown/unplaced" if unplaced else "") + ".")
 
     if check_only:
         return
@@ -288,6 +307,7 @@ def build(check_only=False):
         },
         "trait_schema": trait_schema,
         "tree": root,
+        "unplaced": unplaced,
     }
     with open(OUT_JS, "w", encoding="utf-8") as fh:
         fh.write("// AUTO-GENERATED from data/animals.csv + data/plants.csv by tools/build.py\n")

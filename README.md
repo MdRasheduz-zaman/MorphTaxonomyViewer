@@ -86,17 +86,20 @@ offline — no network is touched at view time.
   a slot exactly like an organism. A group is summarised by the characters *all* its members share, so
   Family *Felidae* vs Family *Canidae*, or Mammals vs Insects, is a valid comparison. (The tree
   **Compare** buttons and the "compare whole groups" examples do the same thing.)
-- **Identify an unknown** (third toggle, next to Tree / Y-compare): found something you can't name?
-  Pick **Animal** or **Plant**, score the visible traits from dropdowns (the recorded vocabulary, so
-  values actually match), give it a provisional name, and press **Classify**. The tool runs a **graded
-  descent** — from the kingdom down, at each level it follows the branch holding the organism's nearest
-  known relative, and **stops at the deepest taxon its morphology can support**: genus if the traits are
-  rich enough, otherwise family / order / class. It reports that placement, *why* it fits (the group's
-  diagnostic characters it matches, and any that conflict), the **closest known species**, and the full
-  descent trace — then grafts the provisional organism into the tree (dashed, amber) so you can see
-  where it lands. "Copy as CSV row" emits a line you can paste into `animals.csv`/`plants.csv` to make it
-  permanent (add its lineage to `lineage_ref.csv` and rebuild). Sparse or ambiguous input honestly lands
-  shallower — a cryptic pair stops at the shared group, not a false species.
+- **Identify an unknown** (third toggle, next to Tree / Y-compare). This is for the real field case:
+  you recorded what you could **see** but don't know the taxonomy. Enter it as an ordinary row in
+  `animals.csv`/`plants.csv` with the **`unknown` column set to `yes`** and the lineage left blank — it
+  stays out of the tree and shows up under **"Unidentified finds in your data"** in this tab. Click it
+  and the tool runs a **graded descent**: from the kingdom down, at each level it follows the branch
+  holding the find's **nearest known relative**, and **stops at the deepest taxon its morphology can
+  support** — genus if the traits are rich enough, otherwise family / order / class. It reports that
+  placement, *why* it fits (the group's diagnostic characters it matches, and any that conflict), the
+  **closest known species**, the full descent trace, and a **paste-ready `lineage_ref.csv` line** to
+  graft it in for real (then clear the `unknown` flag and rebuild). It also grafts a provisional copy
+  into the tree (dashed, amber) so you can see where it lands. A "…score one by hand" panel does the
+  same for a quick ad-hoc try, with free-text trait fields (recorded values offered as suggestions).
+  Sparse or ambiguous input honestly lands shallower — a cryptic pair stops at the shared group, not a
+  false species.
 - **Resize & collapse the panels** (like an IDE): drag the divider between the tree and the detail
   panels to re-balance them, and the divider between the comparison and details to re-balance those.
   Double-click a divider to reset it; use the small button on a divider to collapse or expand that

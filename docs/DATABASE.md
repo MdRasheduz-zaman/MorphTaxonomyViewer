@@ -88,6 +88,26 @@ VALIDATION FAILED:
 Fix it by adding the missing rows up to an existing ancestor and re-running the build. (Spelling and
 capitalisation of `name`/`parent` must match exactly — the links are matched by string.)
 
+### Recording an organism whose taxonomy you don't know (`unknown` flag)
+
+In the field you often record what you can **see** before you know **what it is**. For that, add an
+optional `unknown` column to `animals.csv`/`plants.csv` and set it to **`yes`** on such a row (any of
+`yes`/`y`/`true`/`1`/`x` works). Fill in the visible traits, give it a provisional `species` name, and
+**leave the lineage blank**:
+
+```
+common_name,species,...traits...,unknown
+Unknown broadleaf herb,Herba mysteriosa,herb,...,net,serrate,taproot,radial,...,2,,yes
+```
+
+A flagged row is **not** grafted into the tree and is **exempt from the reach-a-phylum check** —
+instead the build collects it into `DATASET.unplaced`, and it appears in the app's **Identify** tab
+under "Unidentified finds in your data". Clicking it places the organism at the deepest taxon its
+morphology supports and hands you a paste-ready `lineage_ref.csv` line. Once you've identified it,
+add that lineage, **clear the `unknown` flag** (or delete the column value), and rebuild — it now lives
+in the tree like any other organism. The column is optional: rows without it are treated as normal
+(placed) organisms, so existing datasets need no change.
+
 **2. Trait columns** (everything else). Each is one **morphological character**. The build script
 auto-detects the type from the values:
 

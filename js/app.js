@@ -904,6 +904,7 @@
   let idKingdom = "Animalia";
   const idValues = {};       // trait key -> recorded value (form state, persists across views)
   let idName = "";
+  let idManualOpen = false;  // is the "score one by hand" panel expanded
   let provisional = null;    // synthetic node currently grafted into the tree, or null
 
   function kingdomNodeOf(k) {
@@ -922,53 +923,84 @@
     return [...set].sort((a, b) => String(a).localeCompare(String(b)));
   }
 
+  const unknownFromEntry = (u) =>
+    ({ kingdom: u.kingdom, name: u.name, common: u.common, trait_values: { ...(u.trait_values || {}) } });
+
+  // The list of finds recorded (in the CSVs) as `unknown` — traits only, no taxonomy.
+  function renderUnplaced() {
+    const items = DATA.unplaced || [];
+    if (!items.length) {
+      return `<p class="id-none">No unidentified finds in your data yet. Add a row to
+        <code>animals.csv</code>/<code>plants.csv</code> with the visible traits, set the
+        <code>unknown</code> column to <b>yes</b> (leave the taxonomy blank), and rebuild —
+        it appears here to classify.</p>`;
+    }
+    return `<ul class="id-unplaced">` + items.map((u, i) =>
+      `<li data-uix="${i}"><span class="id-uk">${u.kingdom === "Plantae" ? "🌿" : "🐾"}</span>` +
+      `<span class="id-uname">${esc(u.name)}</span>` +
+      (u.common ? `<span class="id-ucommon">· ${esc(u.common)}</span>` : "") +
+      `<span class="id-ucount">${Object.keys(u.trait_values || {}).length} traits</span>` +
+      `<span class="id-go">Classify ›</span></li>`).join("") + `</ul>`;
+  }
+
   function renderIdentify() {
     const schema = schemaFor(idKingdom);
     const fields = schema.map((t) => {
+      const v = idValues[t.key] != null ? escAttr(idValues[t.key]) : "";
       if (t.type === "numeric") {
-        const v = idValues[t.key] != null ? escAttr(idValues[t.key]) : "";
         return `<label class="id-field"><span>${t.label}</span>` +
           `<input type="number" step="any" data-key="${t.key}" value="${v}" ` +
           `placeholder="${Math.round(t.min)}–${Math.round(t.max)}"></label>`;
       }
-      const opts = ['<option value="">— unknown —</option>'].concat(
-        traitOptions(idKingdom, t.key).map((o) =>
-          `<option value="${escAttr(o)}"${idValues[t.key] === o ? " selected" : ""}>${esc(o)}</option>`)
-      );
+      // free-text input with the recorded vocabulary as SUGGESTIONS (datalist) — you can
+      // type a value never seen before, but consistent wording still matches best.
+      const listId = "idopt-" + t.key;
+      const opts = traitOptions(idKingdom, t.key).map((o) => `<option value="${escAttr(o)}"></option>`).join("");
       return `<label class="id-field"><span>${t.label}</span>` +
-        `<select data-key="${t.key}">${opts.join("")}</select></label>`;
+        `<input list="${listId}" data-key="${t.key}" value="${v}" autocomplete="off" placeholder="type or pick…">` +
+        `<datalist id="${listId}">${opts}</datalist></label>`;
     }).join("");
 
     idEl.innerHTML = `
       <div class="id-form">
-        <p class="id-intro">Found something you can't name? Score its <b>visible</b> traits below and the
-          tool places it at the <b>deepest taxon its morphology can support</b> — genus if the traits are
-          rich enough, otherwise family, order, or class. Leave anything you didn't observe as
-          <i>— unknown —</i>.</p>
-        <div class="id-demos"><span>Try a demo:</span>${ID_DEMOS
-          .map((d, i) => `<button class="id-demo" data-demo="${i}">${d.label}</button>`).join("")}</div>
-        <div class="id-head">
-          <div class="id-kingdom">
-            <button class="seg${idKingdom === "Animalia" ? " active" : ""}" data-k="Animalia">🐾 Animal</button>
-            <button class="seg${idKingdom === "Plantae" ? " active" : ""}" data-k="Plantae">🌿 Plant</button>
+        <p class="id-intro">People record what they can <b>see</b> — but often can't name it. Enter such a find
+          as a normal row in <code>animals.csv</code>/<code>plants.csv</code> with the <code>unknown</code>
+          column set to <b>yes</b> and the taxonomy left blank; it stays out of the tree and lands here. This
+          tool then places it at the <b>deepest taxon its morphology can support</b> and suggests how to graft
+          it in.</p>
+        <h4 class="id-h">Unidentified finds in your data <span class="id-hn">${(DATA.unplaced || []).length}</span></h4>
+        ${renderUnplaced()}
+        <details class="id-manual"${idManualOpen ? " open" : ""}>
+          <summary>…or score one by hand</summary>
+          <div class="id-demos"><span>Try a demo:</span>${ID_DEMOS
+            .map((d, i) => `<button class="id-demo" data-demo="${i}">${d.label}</button>`).join("")}</div>
+          <div class="id-head">
+            <div class="id-kingdom">
+              <button class="seg${idKingdom === "Animalia" ? " active" : ""}" data-k="Animalia">🐾 Animal</button>
+              <button class="seg${idKingdom === "Plantae" ? " active" : ""}" data-k="Plantae">🌿 Plant</button>
+            </div>
+            <input id="idName" class="id-name" type="text" autocomplete="off"
+              placeholder="Provisional name, e.g. Ignotus sp-1" value="${escAttr(idName)}">
           </div>
-          <input id="idName" class="id-name" type="text" autocomplete="off"
-            placeholder="Provisional name, e.g. Ignotus sp-1" value="${escAttr(idName)}">
-        </div>
-        <div class="id-grid">${fields}</div>
-        <div class="id-actions">
-          <button class="btn" id="idClassify">Classify</button>
-          <button class="btn ghost" id="idReset">Reset</button>
-          <span class="id-count"></span>
-        </div>
+          <div class="id-grid">${fields}</div>
+          <div class="id-actions">
+            <button class="btn" id="idClassify">Classify</button>
+            <button class="btn ghost" id="idReset">Reset</button>
+            <span class="id-count"></span>
+          </div>
+        </details>
       </div>`;
 
+    idEl.querySelectorAll(".id-unplaced li").forEach((li) =>
+      li.addEventListener("click", () => identify(unknownFromEntry(DATA.unplaced[+li.dataset.uix]))));
+    const det = idEl.querySelector(".id-manual");
+    det.addEventListener("toggle", () => { idManualOpen = det.open; });
     idEl.querySelectorAll(".id-kingdom .seg").forEach((b) =>
       b.addEventListener("click", () => {
         if (idKingdom === b.dataset.k) return;
         idKingdom = b.dataset.k;
         for (const k in idValues) delete idValues[k];
-        removeProvisional(); renderIdentify();
+        idManualOpen = true; removeProvisional(); renderIdentify();
       }));
     idEl.querySelectorAll("[data-key]").forEach((el) =>
       el.addEventListener("input", () => {
@@ -984,10 +1016,8 @@
         idKingdom = d.kingdom;
         for (const k in idValues) delete idValues[k];
         Object.assign(idValues, d.values);
-        idName = d.name;
-        removeProvisional();
-        renderIdentify();
-        runIdentify();
+        idName = d.name; idManualOpen = true;
+        removeProvisional(); renderIdentify(); runIdentify();
       }));
     idEl.querySelector("#idClassify").addEventListener("click", runIdentify);
     idEl.querySelector("#idReset").addEventListener("click", () => {
@@ -1008,9 +1038,9 @@
   function renderIdentifyHint() {
     detailEl.innerHTML =
       `<div class="detail-empty"><h3>Identify an unknown organism</h3>` +
-      `<p>Pick <b>Animal</b> or <b>Plant</b>, score the traits you can see on the left, then press ` +
-      `<b>Classify</b>. The result — the lowest taxon it fits, its closest known species, and how the ` +
-      `tool got there — appears here.</p></div>`;
+      `<p>Pick one of your <b>unidentified finds</b> on the left (or score one by hand) and the tool places ` +
+      `it at the lowest taxon its morphology supports — with its closest known species, why it fits, and how ` +
+      `to graft it into the tree.</p></div>`;
   }
 
   // ---- the classifier ----
@@ -1078,22 +1108,33 @@
     provisional = null;
   }
 
-  function runIdentify() {
-    const nRec = Object.keys(idValues).length;
+  // Core: classify any unknown ({kingdom, name, trait_values}) — used by both the
+  // "unidentified finds" list and the manual form.
+  function identify(unknown) {
+    const nRec = Object.keys(unknown.trait_values).length;
     if (nRec < ID_MINCOV) {
       detailEl.innerHTML =
-        `<div class="detail-empty"><h3>Score a few more traits</h3>` +
-        `<p>Record at least <b>${ID_MINCOV}</b> characters — with fewer, morphology can't place the ` +
-        `organism reliably. You have ${nRec}.</p></div>`;
+        `<div class="detail-empty"><h3>Not enough traits</h3>` +
+        `<p><b>${esc(unknown.name)}</b> has only ${nRec} recorded character(s). Record at least ` +
+        `<b>${ID_MINCOV}</b> — with fewer, morphology can't place it reliably.</p></div>`;
       return;
     }
     removeProvisional();
-    const name = idName.trim() || "Unidentified sp.";
-    const unknown = { kingdom: idKingdom, name, trait_values: { ...idValues } };
     const res = classifyUnknown(unknown);
     const near = nearestSpecies(unknown);
     graftProvisional(unknown, res.placement);
     renderIdentifyResult(unknown, res, near, nRec);
+  }
+  function runIdentify() {
+    identify({ kingdom: idKingdom, name: idName.trim() || "Unidentified sp.", trait_values: { ...idValues } });
+  }
+
+  // Deepest ancestor of `n` (inclusive) whose rank sits ABOVE genus — a valid parent
+  // for a new genus row in lineage_ref.csv when suggesting how to graft the find in.
+  function anchorAboveGenus(n) {
+    const gi = rankIndex["genus"];
+    for (let x = n; x; x = x._parent) if (x.rank !== "root" && rankIndex[x.rank] < gi) return x;
+    return kingdomNodeOf(n && n.kingdom);
   }
 
   function renderIdentifyResult(unknown, res, near, nRec) {
@@ -1129,6 +1170,12 @@
       ? `With finer or more traits it might separate further — morphology alone rarely proves a single species.`
       : `Add more visible traits to try to push the placement deeper.`;
 
+    // "how to graft it in" suggestion
+    const anchor = anchorAboveGenus(placement);
+    const genusGuess = (unknown.name || "").trim().split(/\s+/)[0] || "Newgenus";
+    const kingdomFile = unknown.kingdom === "Plantae" ? "plants.csv" : "animals.csv";
+    const lineageLine = `${genusGuess},genus,${anchor.name}`;
+
     detailEl.innerHTML = `
       <div class="detail-card id-result">
         <h3 class="no-italic">${esc(unknown.name)}</h3>
@@ -1150,9 +1197,16 @@
             `<li>${RANK_LABEL[s.from.rank]} ${esc(s.from.name)} → <b>${esc(s.best.c.name)}</b> ${Math.round(s.best.sim * 100)}%` +
             `${s.second ? ` <span class="id-second">next: ${esc(s.second.c.name)} ${Math.round(s.second.sim * 100)}%</span>` : ""}</li>`).join("")}
           </ol></details>
+        <h4>Add it to the tree</h4>
+        <p class="id-howto">Morphology puts it within <b>${esc(anchor.name)}</b> (${RANK_LABEL[anchor.rank]}).
+          To graft it in: add this line to <code>lineage_ref.csv</code>, set the row's <code>species</code> to a
+          binomial starting with <code>${esc(genusGuess)}</code> in <code>${kingdomFile}</code>, clear its
+          <code>unknown</code> flag, and run <code>tools/build.py</code>.</p>
+        <pre class="id-line"><code>${esc(lineageLine)}</code></pre>
         <div class="d-actions">
           <button class="btn" id="idShowTree">Show in tree</button>
-          <button class="btn ghost" id="idCsv">Copy as CSV row</button>
+          <button class="btn ghost" id="idLine">Copy lineage line</button>
+          <button class="btn ghost" id="idCsv">Copy CSV row</button>
         </div>
       </div>`;
 
@@ -1161,17 +1215,20 @@
     detailEl.querySelector("#idShowTree").addEventListener("click", () => {
       setView("tree"); revealPath(provisional); renderTree(); selectNode(provisional);
     });
-    detailEl.querySelector("#idCsv").addEventListener("click", (e) => copyCsvRow(unknown, e.currentTarget));
+    detailEl.querySelector("#idLine").addEventListener("click", (e) => copyText(lineageLine, e.currentTarget));
+    detailEl.querySelector("#idCsv").addEventListener("click", (e) => copyText(csvRowText(unknown), e.currentTarget));
   }
 
-  // Emit a pasteable CSV row (header + values) for animals.csv / plants.csv, so a
-  // confirmed find can be folded back into the real pipeline (then run build.py).
-  function copyCsvRow(unknown, btn) {
+  // Pasteable CSV row (header + values) for animals.csv / plants.csv — folds a
+  // confirmed find back into the real pipeline (then run build.py).
+  function csvRowText(unknown) {
     const schema = schemaFor(unknown.kingdom);
     const cell = (s) => /[",\n]/.test(String(s)) ? `"${String(s).replace(/"/g, '""')}"` : String(s);
     const cols = ["common_name", "species"].concat(schema.map((t) => t.key));
     const vals = ["", unknown.name].concat(schema.map((t) => { const v = valOf(unknown, t.key); return v == null ? "" : v; }));
-    const text = cols.join(",") + "\n" + vals.map(cell).join(",") + "\n";
+    return cols.join(",") + "\n" + vals.map(cell).join(",") + "\n";
+  }
+  function copyText(text, btn) {
     const done = () => { const o = btn.textContent; btn.textContent = "Copied ✓"; setTimeout(() => { btn.textContent = o; }, 1400); };
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => alert(text));
     else alert(text);

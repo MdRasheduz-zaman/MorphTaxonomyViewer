@@ -1849,5 +1849,45 @@ window.DATASET = {
         ]
       }
     ]
-  }
+  },
+  "unplaced": [
+    {
+      "name": "Mysterium hexapodum",
+      "common": "Unknown six-legged flyer",
+      "kingdom": "Animalia",
+      "trait_values": {
+        "body_covering": "chitin",
+        "symmetry": "bilateral",
+        "body_regions": "head-thorax-abdomen",
+        "segmentation": "segmented",
+        "skeleton_position": "external",
+        "backbone": "no",
+        "eyes": "compound eyes",
+        "eye_position": "lateral",
+        "antennae": "one pair",
+        "limb_count": "6",
+        "appendages": "jointed legs",
+        "wings": "one pair",
+        "locomotion": "fly"
+      },
+      "slug": "mysterium_hexapodum"
+    },
+    {
+      "name": "Herba mysteriosa",
+      "common": "Unknown broadleaf herb",
+      "kingdom": "Plantae",
+      "trait_values": {
+        "growth_form": "herb",
+        "lifespan": "annual",
+        "leaf_complexity": "compound",
+        "leaf_venation": "net",
+        "leaf_margin": "serrate",
+        "stem_type": "herbaceous",
+        "root_system": "taproot",
+        "flower_symmetry": "radial",
+        "cotyledons": "2"
+      },
+      "slug": "herba_mysteriosa"
+    }
+  ]
 };
