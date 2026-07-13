@@ -543,3 +543,58 @@ button:focus-visible, input:focus-visible, .slot-pick:focus-visible,
 @media (prefers-reduced-motion: reduce) {
   .media-el { animation: none !important; }
 }
+
+/* ---------- Identify (classify an unknown) ---------- */
+.identify-wrap { overflow: auto; padding: 14px 16px; }
+.id-intro { color: var(--muted); font-size: 12.5px; line-height: 1.6; margin: 0 0 12px; }
+.id-head { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.id-kingdom { display: inline-flex; gap: 4px; }
+.id-name {
+  flex: 1; min-width: 180px; background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 7px 10px; font-size: 13px;
+}
+.id-name:focus { outline: none; border-color: var(--accent); }
+.id-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px 12px; }
+.id-field { display: flex; flex-direction: column; gap: 3px; font-size: 12px; }
+.id-field > span { color: var(--muted); }
+.id-field select, .id-field input {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 8px; font-size: 13px; font-family: var(--sans);
+}
+.id-field select:focus, .id-field input:focus { outline: none; border-color: var(--accent); }
+.id-actions { display: flex; align-items: center; gap: 10px; margin-top: 14px; position: sticky; bottom: 0;
+  padding: 10px 0 2px; background: linear-gradient(to top, var(--panel) 70%, transparent); }
+.id-count { color: var(--muted); font-size: 12px; }
+.id-count.thin { color: var(--a); }
+
+/* result card (rendered in the detail panel) */
+.id-result .id-verdict {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  margin: 12px 0 6px; padding: 10px 12px; background: var(--panel-2);
+  border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: var(--radius);
+}
+.id-result .id-rank { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.id-result .id-place-name { font-size: 17px; font-weight: 700; }
+.id-result .id-pct { margin-left: auto; font-size: 22px; font-weight: 800; color: var(--accent); }
+.id-diag { list-style: none; padding-left: 0; margin: 4px 0; }
+.id-diag li { font-size: 12.5px; padding: 1px 0; }
+.id-diag li.ok { color: var(--text); }
+.id-diag li.miss { color: var(--a); }
+.id-near { font-size: 13px; }
+.id-trace-wrap { margin: 12px 0; }
+.id-trace-wrap summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+.id-trace { margin: 8px 0 0; padding-left: 18px; font-size: 12px; color: var(--muted); line-height: 1.7; }
+.id-trace b { color: var(--text); font-style: normal; }
+.id-trace .id-second { opacity: .7; }
+
+/* provisional organism grafted into the tree */
+.node-row.provisional .node-name { color: var(--a); font-style: italic; }
+.node-row.provisional .rank-badge { border-color: var(--a); color: var(--a); border-style: dashed; }
+
+.id-demos { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: -4px 0 12px; }
+.id-demos > span { color: var(--muted); font-size: 12px; }
+.id-demo {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 999px; padding: 3px 10px; font-size: 12px; cursor: pointer;
+}
+.id-demo:hover { border-color: var(--accent); }

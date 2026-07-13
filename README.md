@@ -86,6 +86,17 @@ offline — no network is touched at view time.
   a slot exactly like an organism. A group is summarised by the characters *all* its members share, so
   Family *Felidae* vs Family *Canidae*, or Mammals vs Insects, is a valid comparison. (The tree
   **Compare** buttons and the "compare whole groups" examples do the same thing.)
+- **Identify an unknown** (third toggle, next to Tree / Y-compare): found something you can't name?
+  Pick **Animal** or **Plant**, score the visible traits from dropdowns (the recorded vocabulary, so
+  values actually match), give it a provisional name, and press **Classify**. The tool runs a **graded
+  descent** — from the kingdom down, at each level it follows the branch holding the organism's nearest
+  known relative, and **stops at the deepest taxon its morphology can support**: genus if the traits are
+  rich enough, otherwise family / order / class. It reports that placement, *why* it fits (the group's
+  diagnostic characters it matches, and any that conflict), the **closest known species**, and the full
+  descent trace — then grafts the provisional organism into the tree (dashed, amber) so you can see
+  where it lands. "Copy as CSV row" emits a line you can paste into `animals.csv`/`plants.csv` to make it
+  permanent (add its lineage to `lineage_ref.csv` and rebuild). Sparse or ambiguous input honestly lands
+  shallower — a cryptic pair stops at the shared group, not a false species.
 - **Resize & collapse the panels** (like an IDE): drag the divider between the tree and the detail
   panels to re-balance them, and the divider between the comparison and details to re-balance those.
   Double-click a divider to reset it; use the small button on a divider to collapse or expand that

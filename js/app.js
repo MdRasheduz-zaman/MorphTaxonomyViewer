@@ -59,6 +59,7 @@
   function descendantLeaves(n) {
     const out = [];
     (function w(x) {
+      if (x._provisional) return; // a grafted "unknown" is never counted as a real member
       if (!(x.children || []).length) out.push(x);
       else x.children.forEach(w);
     })(n);
@@ -275,7 +276,7 @@
 
   function makeRow(node) {
     const row = document.createElement("div");
-    row.className = "node-row";
+    row.className = "node-row" + (node._provisional ? " provisional" : "");
     row.dataset.id = node._id;
     const hasKids = (node.children || []).length > 0;
 
@@ -365,17 +366,20 @@
   function revealPath(n) { for (let x = n; x; x = x._parent) x._open = true; }
   function setOpenAll(n, open) { n._open = open; (n.children || []).forEach((c) => setOpenAll(c, open)); }
 
-  // ------------------------------------------------ view switching (Tree | Y)
+  // ------------------------------------------------ view switching (Tree | Y | Identify)
   let view = "tree";
   function setView(v) {
     view = v;
-    document.getElementById("tree").classList.toggle("hidden", v === "compare");
+    document.getElementById("tree").classList.toggle("hidden", v !== "tree");
     document.getElementById("ydiagram").classList.toggle("hidden", v !== "compare");
+    document.getElementById("identify").classList.toggle("hidden", v !== "identify");
     document.getElementById("viewTree").classList.toggle("active", v === "tree");
     document.getElementById("viewCompare").classList.toggle("active", v === "compare");
+    document.getElementById("viewIdentify").classList.toggle("active", v === "identify");
     document.getElementById("viewTitle").textContent =
-      v === "compare" ? "Comparison path" : "Tree of life";
+      v === "compare" ? "Comparison path" : v === "identify" ? "Identify an unknown" : "Tree of life";
     if (v === "compare") renderYDiagram();
+    else if (v === "identify") renderIdentify();
     else renderTree();
     updateFocusToggle();
   }
@@ -869,6 +873,310 @@
     addBtns(GROUP_EXAMPLES);
   }
 
+  // ------------------------------------------------ Identify (classify an unknown)
+  // Score the visible traits of an organism whose name you don't know; the tool
+  // places it at the DEEPEST taxon its morphology supports by a "graded descent":
+  // start at the kingdom and, at each level, score every child by how similar the
+  // unknown is to that child's NEAREST member (best morphSim to any species under it),
+  // then descend into the clear winner. It stops — and reports that node as the
+  // placement — when the best child isn't a confident match, when too few characters
+  // overlap, or when two branches fit about equally (genuinely unresolvable, e.g. a
+  // cryptic pair). Nearest-member (not group-consensus) scoring is what lets a sparse
+  // or partial trait set still descend: a high rank's consensus contains only the few
+  // characters ALL its members share, so scoring against it stalls the moment the user
+  // hasn't recorded one of those. Pure client-side: the unknown is an in-memory node
+  // fed through the very same engine the rest of the app uses.
+  const idEl = document.getElementById("identify");
+  const ID_TH = 0.55, ID_MARGIN = 0.03, ID_MINCOV = 3;
+  // One-click sample "unknowns" so anyone can try the classifier without typing.
+  // Neither is a species in the dataset — each is a made-up field observation that
+  // should land at a family (a carnivore near Felidae; a grass near Poaceae).
+  const ID_DEMOS = [
+    { label: "🐾 Mystery carnivore", kingdom: "Animalia", name: "Ignotus carnivorus",
+      values: { body_covering: "hair", dentition: "carnassials", claw_type: "retractable claws",
+                posture: "quadrupedal", backbone: "yes", symmetry: "bilateral", diet: "carnivore",
+                tail: "present", eye_position: "frontal", limb_count: "4" } },
+    { label: "🌿 Mystery grass", kingdom: "Plantae", name: "Herba incognita",
+      values: { growth_form: "grass", leaf_venation: "parallel", leaf_shape: "strap",
+                stem_type: "culm", root_system: "fibrous", leaf_arrangement: "alternate",
+                flower_color: "green", pollination: "wind" } },
+  ];
+  let idKingdom = "Animalia";
+  const idValues = {};       // trait key -> recorded value (form state, persists across views)
+  let idName = "";
+  let provisional = null;    // synthetic node currently grafted into the tree, or null
+
+  function kingdomNodeOf(k) {
+    let hit = null;
+    (function w(n) { if (hit) return; if (n.rank === "kingdom" && n.name === k) hit = n; (n.children || []).forEach(w); })(DATA.tree);
+    return hit;
+  }
+  // Distinct recorded values for a categorical character — the dropdown vocabulary.
+  // (morphSim matches categoricals by EXACT string, so free text would never score.)
+  function traitOptions(kingdom, key) {
+    const set = new Set();
+    descendantLeaves(kingdomNodeOf(kingdom)).forEach((l) => {
+      const v = valOf(l, key);
+      if (v != null && !(l._provisional)) set.add(v);
+    });
+    return [...set].sort((a, b) => String(a).localeCompare(String(b)));
+  }
+
+  function renderIdentify() {
+    const schema = schemaFor(idKingdom);
+    const fields = schema.map((t) => {
+      if (t.type === "numeric") {
+        const v = idValues[t.key] != null ? escAttr(idValues[t.key]) : "";
+        return `<label class="id-field"><span>${t.label}</span>` +
+          `<input type="number" step="any" data-key="${t.key}" value="${v}" ` +
+          `placeholder="${Math.round(t.min)}–${Math.round(t.max)}"></label>`;
+      }
+      const opts = ['<option value="">— unknown —</option>'].concat(
+        traitOptions(idKingdom, t.key).map((o) =>
+          `<option value="${escAttr(o)}"${idValues[t.key] === o ? " selected" : ""}>${esc(o)}</option>`)
+      );
+      return `<label class="id-field"><span>${t.label}</span>` +
+        `<select data-key="${t.key}">${opts.join("")}</select></label>`;
+    }).join("");
+
+    idEl.innerHTML = `
+      <div class="id-form">
+        <p class="id-intro">Found something you can't name? Score its <b>visible</b> traits below and the
+          tool places it at the <b>deepest taxon its morphology can support</b> — genus if the traits are
+          rich enough, otherwise family, order, or class. Leave anything you didn't observe as
+          <i>— unknown —</i>.</p>
+        <div class="id-demos"><span>Try a demo:</span>${ID_DEMOS
+          .map((d, i) => `<button class="id-demo" data-demo="${i}">${d.label}</button>`).join("")}</div>
+        <div class="id-head">
+          <div class="id-kingdom">
+            <button class="seg${idKingdom === "Animalia" ? " active" : ""}" data-k="Animalia">🐾 Animal</button>
+            <button class="seg${idKingdom === "Plantae" ? " active" : ""}" data-k="Plantae">🌿 Plant</button>
+          </div>
+          <input id="idName" class="id-name" type="text" autocomplete="off"
+            placeholder="Provisional name, e.g. Ignotus sp-1" value="${escAttr(idName)}">
+        </div>
+        <div class="id-grid">${fields}</div>
+        <div class="id-actions">
+          <button class="btn" id="idClassify">Classify</button>
+          <button class="btn ghost" id="idReset">Reset</button>
+          <span class="id-count"></span>
+        </div>
+      </div>`;
+
+    idEl.querySelectorAll(".id-kingdom .seg").forEach((b) =>
+      b.addEventListener("click", () => {
+        if (idKingdom === b.dataset.k) return;
+        idKingdom = b.dataset.k;
+        for (const k in idValues) delete idValues[k];
+        removeProvisional(); renderIdentify();
+      }));
+    idEl.querySelectorAll("[data-key]").forEach((el) =>
+      el.addEventListener("input", () => {
+        const v = el.value.trim();
+        if (v === "") delete idValues[el.dataset.key]; else idValues[el.dataset.key] = v;
+        updateIdCount();
+      }));
+    const nm = idEl.querySelector("#idName");
+    nm.addEventListener("input", () => { idName = nm.value; });
+    idEl.querySelectorAll(".id-demo").forEach((b) =>
+      b.addEventListener("click", () => {
+        const d = ID_DEMOS[+b.dataset.demo];
+        idKingdom = d.kingdom;
+        for (const k in idValues) delete idValues[k];
+        Object.assign(idValues, d.values);
+        idName = d.name;
+        removeProvisional();
+        renderIdentify();
+        runIdentify();
+      }));
+    idEl.querySelector("#idClassify").addEventListener("click", runIdentify);
+    idEl.querySelector("#idReset").addEventListener("click", () => {
+      for (const k in idValues) delete idValues[k];
+      idName = ""; removeProvisional(); renderIdentify(); renderDetailEmpty();
+    });
+    updateIdCount();
+    if (!detailEl.querySelector(".id-result")) renderIdentifyHint();
+  }
+  function updateIdCount() {
+    const el = idEl.querySelector(".id-count");
+    if (el) {
+      const n = Object.keys(idValues).length;
+      el.textContent = `${n} trait${n === 1 ? "" : "s"} scored` + (n < ID_MINCOV ? ` · need ≥ ${ID_MINCOV}` : "");
+      el.classList.toggle("thin", n < ID_MINCOV);
+    }
+  }
+  function renderIdentifyHint() {
+    detailEl.innerHTML =
+      `<div class="detail-empty"><h3>Identify an unknown organism</h3>` +
+      `<p>Pick <b>Animal</b> or <b>Plant</b>, score the traits you can see on the left, then press ` +
+      `<b>Classify</b>. The result — the lowest taxon it fits, its closest known species, and how the ` +
+      `tool got there — appears here.</p></div>`;
+  }
+
+  // ---- the classifier ----
+  // How well the unknown fits a child branch = similarity to its NEAREST member.
+  function childFit(unknown, child) {
+    let sim = null, cov = 0;
+    for (const l of descendantLeaves(child)) { // descendantLeaves already skips provisionals
+      const m = morphSim(unknown, l);
+      if (m.sim != null && (sim == null || m.sim > sim)) { sim = m.sim; cov = m.coverage; }
+    }
+    return { sim, cov };
+  }
+  function classifyUnknown(unknown) {
+    let node = kingdomNodeOf(unknown.kingdom);
+    const trace = [];
+    let stopReason = "descended to a single organism";
+    while ((node.children || []).length) {
+      const scored = node.children
+        .map((c) => { const f = childFit(unknown, c); return { c, sim: f.sim, cov: f.cov }; })
+        .filter((s) => s.sim != null)
+        .sort((a, b) => b.sim - a.sim || b.cov - a.cov);
+      if (!scored.length) { stopReason = "no comparable characters at this level"; break; }
+      const best = scored[0], second = scored[1];
+      trace.push({ from: node, best, second });
+      if (best.cov < ID_MINCOV) { stopReason = `only ${best.cov} character(s) overlap here — too few to go deeper`; break; }
+      if (best.sim < ID_TH) { stopReason = `no branch is a confident match (best was ${best.c.name}, ${Math.round(best.sim * 100)}%)`; break; }
+      if (second && best.sim - second.sim < ID_MARGIN) {
+        stopReason = `two branches fit about equally — ${best.c.name} (${Math.round(best.sim * 100)}%) vs ${second.c.name} (${Math.round(second.sim * 100)}%)`;
+        break;
+      }
+      node = best.c;
+    }
+    return { placement: node, trace, stopReason };
+  }
+  function nearestSpecies(unknown) {
+    let best = null, bestS = -1, cov = 0;
+    descendantLeaves(kingdomNodeOf(unknown.kingdom)).forEach((l) => {
+      if (l._provisional) return;
+      const m = morphSim(unknown, comparable(l));
+      if (m.sim != null && m.sim > bestS) { bestS = m.sim; best = l; cov = m.coverage; }
+    });
+    return { node: best, sim: bestS, cov };
+  }
+
+  // ---- graft the provisional organism into the live tree so it's visible ----
+  function graftProvisional(unknown, placement) {
+    removeProvisional();
+    const node = {
+      rank: "species", name: unknown.name, common: "provisional · unidentified",
+      kingdom: unknown.kingdom, trait_values: { ...unknown.trait_values },
+      children: [], _provisional: true,
+    };
+    (placement.children || (placement.children = [])).push(node);
+    node._parent = placement;
+    node._id = "prov" + counter++;
+    byId.set(node._id, node);
+    provisional = node;
+    return node;
+  }
+  function removeProvisional() {
+    if (!provisional) return;
+    const p = provisional._parent;
+    if (p && p.children) p.children = p.children.filter((c) => c !== provisional);
+    byId.delete(provisional._id);
+    provisional = null;
+  }
+
+  function runIdentify() {
+    const nRec = Object.keys(idValues).length;
+    if (nRec < ID_MINCOV) {
+      detailEl.innerHTML =
+        `<div class="detail-empty"><h3>Score a few more traits</h3>` +
+        `<p>Record at least <b>${ID_MINCOV}</b> characters — with fewer, morphology can't place the ` +
+        `organism reliably. You have ${nRec}.</p></div>`;
+      return;
+    }
+    removeProvisional();
+    const name = idName.trim() || "Unidentified sp.";
+    const unknown = { kingdom: idKingdom, name, trait_values: { ...idValues } };
+    const res = classifyUnknown(unknown);
+    const near = nearestSpecies(unknown);
+    graftProvisional(unknown, res.placement);
+    renderIdentifyResult(unknown, res, near, nRec);
+  }
+
+  function renderIdentifyResult(unknown, res, near, nRec) {
+    const placement = res.placement;
+    const isLeaf = !(placement.children || []).filter((c) => !c._provisional).length;
+    const chain = lineageOf(placement).filter((n) => n.rank !== "root");
+    const crumbs = chain
+      .map((n) => `<span class="crumb" data-id="${n._id}">${RANK_LABEL[n.rank]}: ${nameHtml(n)}</span>`)
+      .join('<span class="sep">›</span>');
+    const finalScore = res.trace.length ? Math.round(res.trace[res.trace.length - 1].best.sim * 100) : null;
+
+    // diagnostics of the placement group that the unknown matches / conflicts with
+    let diagBlock = "";
+    if (!isLeaf) {
+      const diag = sharedTraits(placement);
+      const hit = diag.filter((d) => valOf(unknown, d.t.key) === d.value);
+      const miss = diag.filter((d) => valOf(unknown, d.t.key) != null && valOf(unknown, d.t.key) !== d.value);
+      if (diag.length) {
+        diagBlock =
+          `<h4>Why it fits ${esc(placement.name)} <span class="metric-sub">(${hit.length}/${diag.length} diagnostic characters)</span></h4>` +
+          `<ul class="trait-list id-diag">` +
+          hit.map((d) => `<li class="ok">✓ <b>${d.t.label}:</b> ${esc(d.value)}</li>`).join("") +
+          miss.map((d) => `<li class="miss">✗ <b>${d.t.label}:</b> group is ${esc(d.value)}, yours is ${esc(valOf(unknown, d.t.key))}</li>`).join("") +
+          `</ul>`;
+      }
+    }
+
+    const placeName = `<span class="${isItalic(placement) ? "" : "no-italic"}">${esc(placement.name)}</span>`;
+    const headline = isLeaf
+      ? `Closest to species ${placeName}`
+      : `${RANK_LABEL[placement.rank]} ${placeName}`;
+    const nextNote = isLeaf
+      ? `With finer or more traits it might separate further — morphology alone rarely proves a single species.`
+      : `Add more visible traits to try to push the placement deeper.`;
+
+    detailEl.innerHTML = `
+      <div class="detail-card id-result">
+        <h3 class="no-italic">${esc(unknown.name)}</h3>
+        <div class="d-common">${idKingdom === "Plantae" ? "🌿 provisional plant" : "🐾 provisional animal"} · ${nRec} traits scored</div>
+        <div class="id-verdict">
+          <span class="id-rank">${RANK_LABEL[placement.rank]}</span>
+          <span class="id-place-name">${headline}</span>
+          ${finalScore != null ? `<span class="id-pct" title="morphological match to the nearest known member of this taxon">${finalScore}%</span>` : ""}
+        </div>
+        <div class="lineage">${crumbs}</div>
+        <p class="interp">Stopped because ${res.stopReason}. ${nextNote}</p>
+        ${diagBlock}
+        <h4>Closest known species</h4>
+        <p class="id-near">${near.node
+          ? `<button class="leaf-link" data-id="${near.node._id}">${nameHtml(near.node)}</button> · <b>${Math.round(near.sim * 100)}%</b> over ${near.cov} shared characters`
+          : "<i>none comparable</i>"}</p>
+        <details class="id-trace-wrap"><summary>How it descended (${res.trace.length} steps)</summary>
+          <ol class="id-trace">${res.trace.map((s) =>
+            `<li>${RANK_LABEL[s.from.rank]} ${esc(s.from.name)} → <b>${esc(s.best.c.name)}</b> ${Math.round(s.best.sim * 100)}%` +
+            `${s.second ? ` <span class="id-second">next: ${esc(s.second.c.name)} ${Math.round(s.second.sim * 100)}%</span>` : ""}</li>`).join("")}
+          </ol></details>
+        <div class="d-actions">
+          <button class="btn" id="idShowTree">Show in tree</button>
+          <button class="btn ghost" id="idCsv">Copy as CSV row</button>
+        </div>
+      </div>`;
+
+    detailEl.querySelectorAll(".crumb, .leaf-link").forEach((c) =>
+      c.addEventListener("click", () => { setView("tree"); selectNode(byId.get(c.dataset.id)); }));
+    detailEl.querySelector("#idShowTree").addEventListener("click", () => {
+      setView("tree"); revealPath(provisional); renderTree(); selectNode(provisional);
+    });
+    detailEl.querySelector("#idCsv").addEventListener("click", (e) => copyCsvRow(unknown, e.currentTarget));
+  }
+
+  // Emit a pasteable CSV row (header + values) for animals.csv / plants.csv, so a
+  // confirmed find can be folded back into the real pipeline (then run build.py).
+  function copyCsvRow(unknown, btn) {
+    const schema = schemaFor(unknown.kingdom);
+    const cell = (s) => /[",\n]/.test(String(s)) ? `"${String(s).replace(/"/g, '""')}"` : String(s);
+    const cols = ["common_name", "species"].concat(schema.map((t) => t.key));
+    const vals = ["", unknown.name].concat(schema.map((t) => { const v = valOf(unknown, t.key); return v == null ? "" : v; }));
+    const text = cols.join(",") + "\n" + vals.map(cell).join(",") + "\n";
+    const done = () => { const o = btn.textContent; btn.textContent = "Copied ✓"; setTimeout(() => { btn.textContent = o; }, 1400); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, () => alert(text));
+    else alert(text);
+  }
+
   // ------------------------------------------------ toolbar / view toggle
   document.getElementById("expandAll").addEventListener("click", () => { treeFocus = false; setView("tree"); setOpenAll(DATA.tree, true); renderTree(); });
   document.getElementById("collapseAll").addEventListener("click", () => {
@@ -879,6 +1187,7 @@
   document.getElementById("clearCompare").addEventListener("click", clearCompare);
   document.getElementById("viewTree").addEventListener("click", () => setView("tree"));
   document.getElementById("viewCompare").addEventListener("click", () => setView("compare"));
+  document.getElementById("viewIdentify").addEventListener("click", () => setView("identify"));
   document.getElementById("treeFocusToggle").addEventListener("click", () => {
     treeFocus = !treeFocus;
     renderTree();
